@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f5fb">
+  <title>SpendSmart | {{ month_label }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='spendsmart.css') }}">
+</head>
+<body class="dashboard-page">
+  <aside class="sidebar">
+    <a class="brand" href="{{ url_for('index') }}"><span class="brand-mark">S</span><span>spendsmart</span></a>
+    <div class="side-label">WORKSPACE</div>
+    <nav class="side-nav" aria-label="Main navigation">
+      <a class="nav-link active" href="{{ url_for('index', month=selected_month) }}"><span>▦</span>Overview</a>
+      <a class="nav-link" href="#transactions"><span>↕</span>Transactions</a>
+      <a class="nav-link" href="#monthly-report"><span>▤</span>Monthly Reports</a>
+      <a class="nav-link" href="#budget"><span>◷</span>Budget</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="privacy-note"><span>⌂</span><div><strong>Private by design</strong><small>Data belongs to your account</small></div></div>
+      <div class="profile"><div class="avatar">{{ user.username[0]|upper }}</div><div><strong>{{ user.username }}</strong><small>{{ user.email }}</small></div></div>
+      <form action="{{ url_for('logout') }}" method="post"><button class="nav-link logout-link" type="submit"><span>↪</span>Log out</button></form>
+    </div>
+  </aside>
+  <main class="main-content">
+    <header class="page-header">
+      <div><div class="eyebrow">PERSONAL FINANCE</div><h1>Your money, in focus.</h1><p>Welcome back, {{ user.username }}. Here's your financial snapshot.</p></div>
+      <a class="primary-button" href="#add-transaction"><span aria-hidden="true">＋</span> Add transaction</a>
+    </header>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<div class="flash-stack" aria-live="polite">{% for category, message in messages %}<div class="flash {{ category }}"><span>{{ message }}</span><button type="button" class="flash-close" aria-label="Dismiss message">×</button></div>{% endfor %}</div>{% endif %}
+    {% endwith %}
+    <section class="month-toolbar" aria-label="Monthly report controls">
+      <div><div class="eyebrow">MONTHLY REPORT</div><h2>{{ month_label }}</h2></div>
+      <div class="month-controls">
+        <a class="month-arrow" href="{{ url_for('index', month=previous_month) }}" aria-label="Previous month">‹</a>
+        <form action="{{ url_for('index') }}" method="get"><label class="sr-only" for="month">Select month</label><select id="month" name="month">{% for choice in month_options %}<option value="{{ choice }}" {% if choice == selected_month %}selected{% endif %}>{{ choice|replace('-', '/') }}</option>{% endfor %}</select></form>
+        <a class="month-arrow" href="{{ url_for('index', month=next_month) }}" aria-label="Next month">›</a>
+      </div>
+    </section>
+    <section class="summary-grid" aria-label="Financial summary">
+      <article class="summary-card income-card"><div class="card-heading">Total income <span class="metric-icon">↓</span></div><strong>{{ stats.month_income|money }}</strong><small>{{ month_label }}</small></article>
+      <article class="summary-card expense-card"><div class="card-heading">Total expenses <span class="metric-icon">↑</span></div><strong>{{ stats.month_expenses|money }}</strong><small>{{ month_label }}</small></article>
+      <article class="summary-card balance-card"><div class="card-heading">Current balance <span class="metric-icon">◉</span></div><strong>{{ stats.balance|money }}</strong><small>All-time total</small></article>
+      <article class="summary-card budget-summary-card"><div class="card-heading">Monthly budget <span class="metric-icon">◷</span></div><strong>{{ stats.budget|money }}</strong><small>Spending limit</small></article>
+    </section>
+    <section class="analytics-grid" id="monthly-report" aria-label="Monthly analytics">
+      <article class="panel budget-panel" id="budget">
+        <div class="panel-heading"><div><div class="eyebrow">MONTHLY LIMIT</div><h2>Budget progress</h2></div><button class="text-button" id="budget-edit-toggle" type="button">Edit budget</button></div>
+        <div class="budget-line"><span>Spent <strong>{{ stats.month_expenses|money }}</strong></span><span>Budget <strong>{{ stats.budget|money }}</strong></span></div>
+        <div class="progress-track"><div class="progress-fill {% if stats.budget_percent >= 100 %}over-budget{% elif stats.budget_percent >= 80 %}near-budget{% endif %}" style="width: {{ [stats.budget_percent, 100]|min }}%"></div></div>
+        {% if stats.budget_percent >= 100 %}<p class="budget-message danger">Budget reached. {{ (stats.month_expenses - stats.budget)|money }} over the limit.</p>{% elif stats.budget_percent >= 80 %}<p class="budget-message warning">{{ '%.1f'|format(stats.budget_percent) }}% used. Keep an eye on spending.</p>{% else %}<p class="budget-message">{{ (stats.budget - stats.month_expenses)|money }} remaining <span>{{ '%.1f'|format(stats.budget_percent) }}% used</span></p>{% endif %}
+        <form class="budget-form hidden" id="budget-form" action="{{ url_for('update_budget') }}" method="post"><input type="hidden" name="month" value="{{ selected_month }}"><label for="budget-input">Monthly budget (₹)</label><div class="inline-form"><input id="budget-input" name="budget" type="number" min="0.01" step="0.01" value="{{ '%.2f'|format(stats.budget / 100) }}" required><button class="small-primary" type="submit">Save budget</button></div></form>
+      </article>
+      <article class="panel breakdown-panel">
+        <div class="panel-heading"><div><div class="eyebrow">{{ month_label|upper }}</div><h2>Spending by category</h2></div><span class="panel-tag">Expenses</span></div>
+        {% if stats.breakdown %}<div class="breakdown-list">{% for item in stats.breakdown %}<div class="breakdown-row"><span class="category-dot dot-{{ loop.index0 % 6 }}"></span><span class="breakdown-name">{{ item.category }}</span><span class="breakdown-track"><span class="breakdown-bar bar-{{ loop.index0 % 6 }}" style="width: {{ item.total * 100 / stats.month_expenses if stats.month_expenses else 0 }}%"></span></span><strong>{{ item.total|money }}</strong></div>{% endfor %}</div>{% else %}<p class="empty-note">No expenses recorded for {{ month_label }}.</p>{% endif %}
+      </article>
+      <article class="panel comparison-panel">
+        <div><div class="eyebrow">MONTH OVER MONTH</div><h2>How spending changed</h2></div>
+        <div class="comparison-values"><div><small>{{ month_label }} expenses</small><strong>{{ stats.month_expenses|money }}</strong></div><span>vs</span><div><small>{{ previous_month|replace('-', '/') }} expenses</small><strong>{{ stats.previous_expenses|money }}</strong></div></div>
+        <div class="savings-value"><small>Net savings this month</small><strong>{{ stats.net_savings|money }}</strong></div>
+        {% if stats.spending_change is none %}<p class="comparison-note">No previous-month spending to compare.</p>{% elif stats.spending_change > 0 %}<p class="comparison-note increase">↑ {{ '%.1f'|format(stats.spending_change) }}% more spent than last month</p>{% elif stats.spending_change < 0 %}<p class="comparison-note decrease">↓ {{ '%.1f'|format(-stats.spending_change) }}% less spent than last month</p>{% else %}<p class="comparison-note">Spending is unchanged from last month.</p>{% endif %}
+      </article>
+    </section>
+    <section class="panel add-panel" id="add-transaction">
+      <div class="panel-heading"><div><div class="eyebrow">KEEP IT CURRENT</div><h2>{{ 'Edit transaction' if edit_transaction else 'Add a transaction' }}</h2></div><span class="required-hint">* Required</span></div>
+      <form class="transaction-form" action="{{ url_for('edit_transaction', transaction_id=edit_transaction.id, month=selected_month) if edit_transaction else url_for('index', month=selected_month) }}" method="post" id="transaction-form">
+        <input type="hidden" name="month" value="{{ selected_month }}">{% set entry = edit_transaction %}
+        <div class="form-field"><label for="title">Title <span>*</span></label><input id="title" name="title" type="text" maxlength="80" value="{{ entry.title if entry else '' }}" placeholder="e.g. Weekly groceries" required></div>
+        <div class="form-field"><label for="amount">Amount (₹) <span>*</span></label><input id="amount" name="amount" type="number" min="0.01" max="999999999" step="0.01" value="{{ '%.2f'|format(entry.amount_paise / 100) if entry else '' }}" placeholder="0.00" required></div>
+        <div class="form-field"><label for="type">Type <span>*</span></label><select id="type" name="type" required><option value="expense" {% if not entry or entry.type == 'expense' %}selected{% endif %}>Expense</option><option value="income" {% if entry and entry.type == 'income' %}selected{% endif %}>Income</option></select></div>
+        <div class="form-field"><label for="category">Category <span>*</span></label><select id="category" name="category" required>{% for category in categories %}<option value="{{ category }}" {% if entry and entry.category == category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select></div>
+        <div class="form-field"><label for="date">Date <span>*</span></label><input id="date" name="date" type="date" min="{{ month_first }}" max="{{ month_last }}" value="{{ entry.date if entry else (today if today[:7] == selected_month else month_first) }}" required></div>
+        <div class="form-field"><label for="description">Description</label><input id="description" name="description" type="text" maxlength="240" value="{{ entry.description if entry else '' }}" placeholder="Optional note"></div>
+        <div class="form-actions">{% if edit_transaction %}<a class="secondary-button" href="{{ url_for('index', month=selected_month) }}">Cancel</a>{% endif %}<button class="primary-button" type="submit">{{ 'Save changes' if edit_transaction else '＋ Add transaction' }}</button></div>
+      </form>
+    </section>
+    <section class="panel history-panel" id="transactions">
+      <div class="panel-heading history-heading"><div><div class="eyebrow">{{ month_label|upper }}</div><h2>Transaction history <span class="count-pill">{{ transactions|length }}</span></h2></div></div>
+      <form class="filter-form" action="{{ url_for('index') }}" method="get">
+        <input type="hidden" name="month" value="{{ selected_month }}">
+        <label class="search-box"><span>⌕</span><input type="search" name="search" value="{{ filters.search }}" placeholder="Search transactions" aria-label="Search transactions"></label>
+        <select name="category" aria-label="Filter by category"><option value="">All categories</option>{% for category in categories %}<option value="{{ category }}" {% if filters.category == category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select>
+        <select name="type" aria-label="Filter by type"><option value="">All types</option><option value="income" {% if filters.type == 'income' %}selected{% endif %}>Income</option><option value="expense" {% if filters.type == 'expense' %}selected{% endif %}>Expense</option></select>
+        <input type="date" name="date_from" value="{{ filters.date_from }}" aria-label="From date"><input type="date" name="date_to" value="{{ filters.date_to }}" aria-label="To date">
+        <button class="filter-button" type="submit">Filter</button>
+        {% if filters.search or filters.category or filters.type or filters.date_from or filters.date_to %}<a class="clear-filter" href="{{ url_for('index', month=selected_month) }}">Clear</a>{% endif %}
+      </form>
+      <div class="table-wrap"><table><thead><tr><th scope="col">TRANSACTION</th><th scope="col">CATEGORY</th><th scope="col">DATE</th><th scope="col">AMOUNT</th><th scope="col">ACTIONS</th></tr></thead><tbody>
+        {% for transaction in transactions %}<tr><td><div class="transaction-name"><span class="transaction-symbol {{ transaction.type }}">{{ '↓' if transaction.type == 'income' else '↑' }}</span><div><strong>{{ transaction.title }}</strong><small>{{ transaction.description or transaction.type|capitalize }}</small></div></div></td><td><span class="category-label">{{ transaction.category }}</span></td><td>{{ transaction.date }}</td><td class="amount-cell {{ transaction.type }}">{{ '+' if transaction.type == 'income' else '−' }}{{ transaction.amount_paise|money }}</td><td><div class="row-actions"><a class="icon-button" href="{{ url_for('edit_transaction', transaction_id=transaction.id, month=selected_month) }}" aria-label="Edit {{ transaction.title }}">✎</a><form class="delete-form" action="{{ url_for('delete_transaction', transaction_id=transaction.id) }}" method="post"><input type="hidden" name="month" value="{{ selected_month }}"><button class="icon-button delete-button" type="submit" aria-label="Delete {{ transaction.title }}">×</button></form></div></td></tr>{% else %}<tr><td class="empty-state" colspan="5">No transactions found for {{ month_label }}.</td></tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+    <footer class="footer">SpendSmart <span>·</span> Private finances for {{ user.username }}</footer>
+  </main>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

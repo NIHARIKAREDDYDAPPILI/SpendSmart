@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a35">
+  <title>Sign in | SpendSmart</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='spendsmart.css') }}">
+</head>
+<body class="auth-page">
+  <main class="auth-layout">
+    <section class="auth-story">
+      <a class="brand auth-brand" href="{{ url_for('login') }}"><span class="brand-mark">S</span><span>spendsmart</span></a>
+      <div class="story-content"><div class="eyebrow">A CLEARER VIEW OF YOUR MONEY</div><h1>Make every<br>rupee count.</h1><p>Keep your spending grounded, your budget in view, and your next goal within reach.</p><div class="story-chart" aria-hidden="true"><span style="height:36%"></span><span style="height:54%"></span><span style="height:46%"></span><span style="height:70%"></span><span style="height:62%"></span><span style="height:88%"></span><span style="height:76%"></span><i></i></div><div class="story-caption"><span>MONTHLY SPENDING</span><strong>Understand the pattern, shape the plan.</strong></div></div>
+      <div class="story-footer">Private by design <span>·</span> Data saved locally</div>
+    </section>
+    <section class="auth-main"><div class="auth-card"><div class="auth-eyebrow">WELCOME BACK</div><h2>Sign in to SpendSmart</h2><p class="auth-subtitle">Your finances, all in one place.</p>
+      {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+      <form method="post" class="auth-form"><div class="form-field"><label for="identity">Email or username</label><input id="identity" name="identity" type="text" autocomplete="username" placeholder="you@example.com" required autofocus></div><div class="form-field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required></div><button class="primary-button auth-submit" type="submit">Sign in <span>→</span></button></form>
+      <div class="demo-credentials"><div class="demo-heading"><span class="demo-dot"></span> DEMO ACCOUNT</div><p>For project demonstration only. Do not use these credentials as a real password.</p><div><span>Username</span><strong>niharika</strong></div><div><span>Password</span><strong>niharika</strong></div></div>
+      <p class="auth-switch">New to SpendSmart? <a href="{{ url_for('register') }}">Create an account</a></p>
+    </div><div class="auth-legal">Your account data is stored in the local SQLite database.</div></section>
+  </main>
+</body>
+</html>
